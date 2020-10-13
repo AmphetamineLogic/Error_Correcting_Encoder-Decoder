@@ -1,6 +1,7 @@
 package correcter;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -15,18 +16,19 @@ public class Main {
 //        System.out.println("Write a mode: ");
         switch (scanner.nextLine()) {
             case "encode":
-                writeFile(convertBinaryStringToByteArray(encode(readFile(sendPath))), encodedPath);
+                writeFile(convertBinaryStringToByteArray(encodeHamming(readFile(sendPath))), encodedPath);
+//                writeFile(convertBinaryStringToByteArray(encodeParityBits(readFile(sendPath))), encodedPath);
                 break;
             case "send":
                 writeFile(makeErrors(readFile(encodedPath)), receivedPath);
                 break;
             case "decode":
-                writeFile(convertBinaryStringToByteArray(decode(readFile(receivedPath))), decodedPath);
+                writeFile(convertBinaryStringToByteArray(decodeParityBits(readFile(receivedPath))), decodedPath);
                 break;
             case "test":
-                writeFile(convertBinaryStringToByteArray(encode(readFile(sendPath))), encodedPath);
+                writeFile(convertBinaryStringToByteArray(encodeParityBits(readFile(sendPath))), encodedPath);
                 writeFile(makeErrors(readFile(encodedPath)), receivedPath);
-                writeFile(convertBinaryStringToByteArray(decode(readFile(receivedPath))), decodedPath);
+                writeFile(convertBinaryStringToByteArray(decodeParityBits(readFile(receivedPath))), decodedPath);
                 break;
         }
     }
@@ -88,7 +90,7 @@ public class Main {
         return sourceBytes;
     }
 
-    private static String encode (byte[] sourceBytes) {
+    private static String encodeParityBits(byte[] sourceBytes) {
         String byteArrayAsBinaryString = convertByteArrayToBinaryString(sourceBytes);
         System.out.println("Source:    " + byteArrayAsBinaryString);
 
@@ -144,7 +146,34 @@ public class Main {
         return stringBuilder.toString();
     }
 
-    private static String decode (byte[] sourceBytes) {
+    private static String encodeHamming(byte[] sourceBytes) {
+        String byteArrayAsBinaryString = convertByteArrayToBinaryString(sourceBytes);
+        System.out.println("Source:    " + byteArrayAsBinaryString);
+
+        boolean resultingBits[] = new boolean[8];
+        StringBuilder stringBuilder = new StringBuilder();
+
+        String current4bitsAsString;
+        for (int i = 0; i < byteArrayAsBinaryString.length() / 4; i++) {
+            current4bitsAsString = byteArrayAsBinaryString.substring(i * 4, i * 4 + 4);
+            resultingBits[2] = current4bitsAsString.charAt(0) != '0';
+            resultingBits[4] = current4bitsAsString.charAt(1) != '0';
+            resultingBits[5] = current4bitsAsString.charAt(2) != '0';
+            resultingBits[6] = current4bitsAsString.charAt(3) != '0';
+            resultingBits[0] = resultingBits[2] ^ resultingBits[4] ^ resultingBits[6];
+            resultingBits[1] = resultingBits[2] ^ resultingBits[5] ^ resultingBits[6];
+            resultingBits[3] = resultingBits[4] ^ resultingBits[5] ^ resultingBits[6];
+            resultingBits[7] = false;
+//            System.out.println(Arrays.toString(resultingBits));
+            for (int j = 0; j < 8; j++) {
+                stringBuilder.append(resultingBits[j] == false ? '0' : '1');
+            }
+        }
+        System.out.println("Encoded:   " + stringBuilder);
+        return stringBuilder.toString();
+    }
+
+    private static String decodeParityBits(byte[] sourceBytes) {
         String byteArrayAsBinaryString = convertByteArrayToBinaryString(sourceBytes);
         boolean[] bits = new boolean[8];
         String currentByteAsString;
@@ -154,7 +183,7 @@ public class Main {
             for (int j = 0; j < 8; j++) {
                 bits[j] = currentByteAsString.charAt(j) != '0';
             }
-            stringBuilder.append(correctByte(bits));
+            stringBuilder.append(correctByteParityBits(bits));
         }
 
         String result = stringBuilder.toString().substring(0, stringBuilder.toString().length() / 8 * 8);
@@ -162,7 +191,7 @@ public class Main {
         return result;
     }
 
-    private static String correctByte (boolean[] bits) {
+    private static String correctByteParityBits(boolean[] bits) {
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < 6; i+=2) {
             if (bits[i] == bits[i+1]) {
