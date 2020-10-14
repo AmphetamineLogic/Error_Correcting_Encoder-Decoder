@@ -1,7 +1,6 @@
 package correcter;
 
 import java.io.*;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -23,12 +22,12 @@ public class Main {
                 writeFile(makeErrors(readFile(encodedPath)), receivedPath);
                 break;
             case "decode":
-                writeFile(convertBinaryStringToByteArray(decodeParityBits(readFile(receivedPath))), decodedPath);
+                writeFile(convertBinaryStringToByteArray(decode(readFile(receivedPath), 1)), decodedPath);
                 break;
             case "test":
-                writeFile(convertBinaryStringToByteArray(encodeParityBits(readFile(sendPath))), encodedPath);
+                writeFile(convertBinaryStringToByteArray(encodeHamming(readFile(sendPath))), encodedPath);
                 writeFile(makeErrors(readFile(encodedPath)), receivedPath);
-                writeFile(convertBinaryStringToByteArray(decodeParityBits(readFile(receivedPath))), decodedPath);
+                writeFile(convertBinaryStringToByteArray(decode(readFile(receivedPath), 1)), decodedPath);
                 break;
         }
     }
@@ -83,7 +82,7 @@ public class Main {
         Random random = new Random();
         byte bitToChange;
         for (int i = 0; i < sourceBytes.length; i++) {
-            bitToChange = (byte) random.nextInt(8);
+            bitToChange = (byte) random.nextInt(7);
             sourceBytes[i] ^= 1 << bitToChange;
         }
         System.out.println("Received:  " + convertByteArrayToBinaryString(sourceBytes));
@@ -164,16 +163,16 @@ public class Main {
             resultingBits[1] = resultingBits[2] ^ resultingBits[5] ^ resultingBits[6];
             resultingBits[3] = resultingBits[4] ^ resultingBits[5] ^ resultingBits[6];
             resultingBits[7] = false;
-//            System.out.println(Arrays.toString(resultingBits));
             for (int j = 0; j < 8; j++) {
-                stringBuilder.append(resultingBits[j] == false ? '0' : '1');
+                stringBuilder.append(resultingBits[j] ? '1' : '0');
             }
         }
         System.out.println("Encoded:   " + stringBuilder);
         return stringBuilder.toString();
     }
 
-    private static String decodeParityBits(byte[] sourceBytes) {
+    private static String decode(byte[] sourceBytes, int mode) {
+        // mode 0 - parity bits, mode 1 - Hamming code
         String byteArrayAsBinaryString = convertByteArrayToBinaryString(sourceBytes);
         boolean[] bits = new boolean[8];
         String currentByteAsString;
@@ -183,13 +182,19 @@ public class Main {
             for (int j = 0; j < 8; j++) {
                 bits[j] = currentByteAsString.charAt(j) != '0';
             }
-            stringBuilder.append(correctByteParityBits(bits));
+            if (mode == 0) {
+                stringBuilder.append(correctByteParityBits(bits));
+            }
+            else {
+                stringBuilder.append(correctByteHamming(bits));
+            }
         }
 
         String result = stringBuilder.toString().substring(0, stringBuilder.toString().length() / 8 * 8);
         System.out.println("Corrected: " + result);
         return result;
     }
+
 
     private static String correctByteParityBits(boolean[] bits) {
         StringBuilder stringBuilder = new StringBuilder();
@@ -207,6 +212,37 @@ public class Main {
                 }
             }
         }
+        return stringBuilder.toString();
+    }
+
+    private static String correctByteHamming(boolean[] bits) {
+        StringBuilder stringBuilder = new StringBuilder();
+        boolean controlBit0 = bits[2] ^ bits[4] ^ bits[6];
+        boolean controlBit1 = bits[2] ^ bits[5] ^ bits[6];
+        boolean controlBit3 = bits[4] ^ bits[5] ^ bits[6];
+
+        if (controlBit0 != bits[0] && controlBit1 != bits[1] && controlBit3 != bits[3])
+        {
+            bits[6] = !bits[6];
+        }
+        else if (controlBit0 != bits[0] && controlBit1 != bits[1])
+        {
+            bits[2] = !bits[2];
+        }
+        else if (controlBit0 != bits[0] && controlBit3 != bits[3])
+        {
+            bits[4] = !bits[4];
+        }
+        else if (controlBit1 != bits[1] && controlBit3 != bits[3])
+        {
+            bits[5] = !bits[5];
+        }
+
+        stringBuilder.append(bits[2] ? '1' : '0');
+        stringBuilder.append(bits[4] ? '1' : '0');
+        stringBuilder.append(bits[5] ? '1' : '0');
+        stringBuilder.append(bits[6] ? '1' : '0');
+
         return stringBuilder.toString();
     }
 
